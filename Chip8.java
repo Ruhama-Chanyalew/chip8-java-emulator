@@ -1,3 +1,7 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
 public class Chip8 {
     // 1. 4,096 bytes (4KB) of RAM
     public byte[] memory = new byte[4096];
@@ -63,5 +67,48 @@ public class Chip8 {
         System.out.println("   RAM: 4,096 bytes allocated.");
         System.out.printf("   PC: 0x%03X (entry point).%n", pc);
         System.out.println("   Font set loaded into memory (0x050 - 0x09F).");
+    }
+
+    // Loads a binary ROM file into RAM starting at address 0x200 (512)
+    public boolean loadRom(String romPath) {
+        File file = new File(romPath);
+        if (!file.exists()) {
+            System.err.println("❌ Error: ROM file not found at " + romPath);
+            return false;
+        }
+
+        // Available memory from 0x200 to 0xFFF is 3,584 bytes
+        if (file.length() > (4096 - 0x200)) {
+            System.err.println("❌ Error: ROM is too large for CHIP-8 memory (" + file.length() + " bytes).");
+            return false;
+        }
+
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] romBuffer = new byte[(int) file.length()];
+            int bytesRead = fis.read(romBuffer);
+
+            // Copy ROM bytes into memory starting at 0x200
+            for (int i = 0; i < bytesRead; i++) {
+                memory[0x200 + i] = romBuffer[i];
+            }
+
+            System.out.printf("✅ Loaded ROM: %s (%d bytes) into memory at [0x200 - 0x%03X]%n", 
+                file.getName(), bytesRead, 0x200 + bytesRead);
+            return true;
+        } catch (IOException e) {
+            System.err.println("❌ Error reading ROM: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Helper to inspect the first few opcodes loaded in memory
+    public void dumpMemory(int startAddress, int numBytes) {
+        System.out.println("--- Memory Dump ---");
+        for (int i = 0; i < numBytes; i += 2) {
+            int addr = startAddress + i;
+            int opcode = ((memory[addr] & 0xFF) << 8) | (memory[addr + 1] & 0xFF);
+            System.out.printf("[0x%03X]: 0x%04X%n", addr, opcode);
+        }
+        System.out.println("-------------------");
     }
 }
